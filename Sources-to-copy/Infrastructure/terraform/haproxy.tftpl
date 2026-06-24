@@ -1,0 +1,16 @@
+# ascolta su porta 80
+frontend k8s_ingress_frontend
+    bind *:80
+    mode tcp
+    option tcplog
+    default_backend k8s_ingress_backend
+
+# rimanda ai node port su porta 300080
+backend k8s_ingress_backend
+    mode tcp
+    balance roundrobin
+    option tcp-check
+    %{for i,ip in w_ips ~}
+    server worker${i+1} ${ip}:30080 check
+    %{endfor ~}
+

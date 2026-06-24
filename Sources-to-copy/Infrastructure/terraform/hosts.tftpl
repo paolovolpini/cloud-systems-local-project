@@ -1,0 +1,21 @@
+[workers]
+%{for i,ip in workers_ip ~}
+worker${i+1} ansible_host=${ip} ansible_user=ubuntu
+%{endfor ~}
+
+[control_plane]
+control_plane ansible_host=${cp_ip} ansible_user=ubuntu
+
+[registry]
+registry ansible_host=${reg_ip} ansible_user=ubuntu
+
+[loadbalancer]
+loadbalancer ansible_host=${lb_ip} ansible_user=ubuntu
+
+[cluster:children]
+workers
+control_plane
+
+[all:vars]
+ansible_ssh_private_key_file=${privkey}
+ansible_ssh_common_args=-o StrictHostKeyChecking=no

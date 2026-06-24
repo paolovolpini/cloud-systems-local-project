@@ -1,0 +1,45 @@
+name: Creates plan and initializes tofu runner
+
+on:
+  pull_request:
+    paths:
+      - "terraform/**"
+      - "ansible/*.yaml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted 
+    steps:
+
+    - name: Clones repo
+      uses: actions/checkout@v6
+
+    - name: Get keys from repo secrets 
+      run: |
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > terraform/ssh_id
+        chmod 600 terraform/ssh_id
+        echo "${{ secrets.SSH_PUBLIC_KEY }}" > terraform/ssh_id.pub
+      
+    - name: Get tofu providers 
+      run: tofu -chdir=terraform init 
+
+    - name: Get tofu plan 
+      run: tofu -chdir=terraform plan -out=tfplan 2>&1 | tee plan.txt
+
+    # Se tutto funziona questo crea un json del tipo:
+    # { "body": "### OpenTofu Plan\n```\n{body}.\n```"}
+    # poi invia la richiesta con body il json prodotto all'api di gitea
+    - name: Post plan as PR comment
+      if: gitea.event_name == 'pull_request'
+      run: |
+        PLAN=$(head -c 60000 plan.txt)
+        BODY_JSON=$(jq -n --arg body "### OpenTofu Plan
+        \`\`\`
+        $PLAN
+        \`\`\`" '{body: $body}')
+        curl -X POST \
+          -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" \
+          -H "Content-Type: application/json" \
+          "${{ gitea.server_url }}/api/v1/repos/${{ gitea.repository }}/issues/${{ gitea.event.pull_request.number }}/comments" \
+          -d "$BODY_JSON"

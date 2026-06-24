@@ -1,0 +1,127 @@
+---
+- name: Installing k8s on all nodes
+  hosts: cluster
+  become: true
+
+  tasks:
+
+    - name: Disable swap
+      command: swapoff -a 
+
+    - name: Modify fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*\s+swap\s+.*)$'
+        replace: '# \1'
+      
+    - name: Load kernel modules
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: Save kernel modules on boot
+      copy:
+        dest: /etc/modules-load.d/k8s.conf
+        content: | 
+          overlay
+          br_netfilter
+    
+    - name: Set sysctl parameters for Kubernetes networking
+      ansible.posix.sysctl:
+        name: "{{ item.key }}"
+        value: "{{ item.value }}"
+        state: present
+        sysctl_file: /etc/sysctl.d/k8s.conf
+        reload: true
+      loop:
+        - { key: net.bridge.bridge-nf-call-iptables, value: "1" }
+        - { key: net.bridge.bridge-nf-call-ip6tables, value: "1" }
+        - { key: net.ipv4.ip_forward, value: "1" }
+
+    - name: Get packets for k8s
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gpg
+          - containerd
+          - conntrack
+        update-cache: true
+    
+    - name: Create directory for containerd config
+      file:
+        path: /etc/containerd
+        state: directory
+        mode: '0755'
+    
+    - name: Copy config file for containerd
+      copy:
+        dest: /etc/containerd/config.toml
+        src: ~/tofu-gen/config.toml
+
+    - name: Create directory for insecure registry 
+      file:
+        path: /etc/containerd/certs.d/{{ registry_ip }}:5000
+        state: directory
+        mode: '0755'
+        
+    - name: Add insecure registry to pull images
+      copy: 
+        src: ~/tofu-gen/hosts-containerd.toml
+        dest: /etc/containerd/certs.d/{{ registry_ip }}:5000/hosts.toml
+
+    - name: Restart containerd service 
+      service:
+        name: containerd
+        state: restarted
+        enabled: true
+    
+    - name: Create keyrings directory 
+      file: 
+        path: /etc/apt/keyrings 
+        state: directory 
+        mode: '0755'
+      
+    - name: Check if key exists 
+      stat:
+        path: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      register: keyring
+
+    - name: Get keyring 
+      shell: | 
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.36/deb/Release.key \
+        | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      when: not keyring.stat.exists
+
+    - name: Add kubernetes repo
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.36/deb/ /"
+        filename: kubernetes
+        state: present
+
+    - name: Install kube packages
+      apt:
+        name: 
+          - kubelet
+          - kubeadm
+          - kubectl 
+        update-cache: true
+
+    - name: Hold packages 
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Enable kubelet 
+      service:
+        name: kubelet 
+        state: started
+        enabled: true

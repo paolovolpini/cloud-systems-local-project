@@ -1,0 +1,36 @@
+- name: Installing Docker and registry image
+  hosts: registry
+  become: true
+
+  tasks:
+    - name: Installing docker.io package
+      apt:
+        update_cache: true
+        name: docker.io
+        state: present
+
+    - name: Enable service
+      service:
+        name: docker
+        enabled: true
+        state: started
+
+    - name: Add "ubuntu" to Docker Group
+      user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+    - name: Check if registry is running
+      shell: docker container inspect registry | grep Status
+      register: reg_check
+      ignore_errors: true 
+
+    - name: Install registry image
+      command: |
+        docker run -d \
+        -p 5000:5000 \
+        --name registry \
+        -v /mnt/registry:/var/lib/registry \
+        registry:2
+      when: reg_check.rc != 0 or reg_check.stdout.find('running') == -1

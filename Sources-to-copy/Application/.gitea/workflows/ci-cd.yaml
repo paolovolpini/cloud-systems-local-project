@@ -1,0 +1,67 @@
+name: CI/CD pipeline
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - 'k8s/**'
+  workflow_dispatch:
+
+jobs:
+  cicd:
+    runs-on: self-hosted
+    steps:
+      - name: Clones repo
+        uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+            frontend:
+              - 'frontend/**'
+
+      - name: Builds back-end image if edited
+        if: steps.filter.outputs.backend == 'true'
+        run: |
+          IP_REG=$(cat ~/tofu-gen/reg_ip.txt)
+          docker build -t ${IP_REG}:5000/shortener-backend:${{ gitea.sha }} backend/
+          docker push ${IP_REG}:5000/shortener-backend:${{ gitea.sha }}
+          echo "${{ gitea.sha }}" > ~/tofu-gen/backend-tag.txt
+
+      - name: Builds front-end image IF EDITED
+        if: steps.filter.outputs.frontend == 'true'
+        run: |
+          IP_REG=$(cat ~/tofu-gen/reg_ip.txt)
+          docker build -t ${IP_REG}:5000/shortener-frontend:${{ gitea.sha }} frontend/
+          docker push ${IP_REG}:5000/shortener-frontend:${{ gitea.sha }}
+          echo "${{ gitea.sha }}" > ~/tofu-gen/frontend-tag.txt
+          
+      - name: Get IP and tags for front-end and back-end manifests
+        run: |
+          IP_REG=$(cat ~/tofu-gen/reg_ip.txt)
+          echo "IP_REG=${IP_REG}" >> $GITEA_ENV
+          BACK_TAG=$(cat ~/tofu-gen/backend-tag.txt)
+          echo "BACK_TAG=${BACK_TAG}" >> $GITEA_ENV
+          FRONT_TAG=$(cat ~/tofu-gen/frontend-tag.txt)
+          echo "FRONT_TAG=${FRONT_TAG}" >> $GITEA_ENV
+
+      - name: Generate manifests
+        run: | 
+          sed -i "s|REGISTRY_IP:5000/shortener-backend:.*|${IP_REG}:5000/shortener-backend:${BACK_TAG}|g" \
+            k8s/backend-deployment.yaml
+          sed -i "s|REGISTRY_IP:5000/shortener-frontend:.*|${IP_REG}:5000/shortener-frontend:${FRONT_TAG}|g" \
+            k8s/frontend-deployment.yaml
+        
+      - name: Apply manifests
+        run: |
+          KUBECONFIG=~/tofu-gen/kubeconfig kubectl apply -f k8s/        
+
+      - name: Check Kubernetes Rollout Status
+        run: |
+          KUBECONFIG=~/tofu-gen/kubeconfig kubectl rollout status statefulset/postgres --timeout=120s
+          KUBECONFIG=~/tofu-gen/kubeconfig kubectl rollout status deployment/shortener-frontend --timeout=120s
+          KUBECONFIG=~/tofu-gen/kubeconfig kubectl rollout status deployment/shortener-backend --timeout=120s

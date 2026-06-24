@@ -1,0 +1,51 @@
+name: Applies plan, creates infrastructure and kubernetes cluster 
+on:
+  push:
+    branches: [main]
+    paths: ['terraform/**']
+  workflow_dispatch:
+
+jobs:
+  apply:
+    runs-on: self-hosted
+    steps:
+      
+      - name: Clone repo
+        uses: actions/checkout@v6
+
+      - name: Save keys
+        run: | 
+          echo "${{ secrets.SSH_PRIVATE_KEY}}" > terraform/ssh_id
+          chmod 600 terraform/ssh_id
+          echo "${{ secrets.SSH_PUBLIC_KEY}}" > terraform/ssh_id.pub
+
+      - name: Initialize providers
+        run: tofu -chdir=terraform init
+
+      - name: Apply plan
+        run: tofu -chdir=terraform apply -auto-approve
+
+      - name: Save ip for application repo (needed to push image)
+        run: tofu -chdir=terraform output -raw registry_ip > ~/tofu-gen/reg_ip.txt
+
+      - name: Install kubernetes 
+        run: |
+          REG_IP=$(tofu -chdir=terraform output -raw registry_ip)
+          ansible-playbook -i ~/tofu-gen/hosts.ini ansible/install-k8s.yaml -e registry_ip=$REG_IP
+
+      - name: Create kubernetes cluster 
+        run: ansible-playbook -i ~/tofu-gen/hosts.ini ansible/build-cluster.yaml
+      
+      - name: Create registry 
+        run: ansible-playbook -i ~/tofu-gen/hosts.ini ansible/build-registry.yaml
+        
+      - name: Add secret to kubernetes cluster
+        run: |
+          KUBECONFIG=~/tofu-gen/kubeconfig kubectl create secret generic postgres-secret --from-literal=password=${{ secrets.POSTGRE_SECRET }} \
+            --dry-run=client -o yaml | KUBECONFIG=~/tofu-gen/kubeconfig kubectl apply -f -
+      
+      - name: Create load balancer
+        run: ansible-playbook -i ~/tofu-gen/hosts.ini ansible/setup-lb.yaml
+
+      
+
