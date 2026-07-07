@@ -71,11 +71,28 @@ La repository contiene due folder:
 
 Il progetto locale simula il funzionamento di un'infrastruttura distribuita simulata con istanze generate mediante Multipass, un hypervisor locale. La gestione dell'infrastruttura è affidata ad una repository locale ospitata su Gitea, mentre un'ulteriore repository gestisce il deployment dell'applicazione su di essa. In questo caso, l'applicazione è un URL Shortener, con front-end, back-end e database PostgreSQL.
 
+### Setup di Gitea
+
+Le repository sono ospitate su Gitea. Pertanto, è necessario installare Gitea e proseguire con il setup, come specifica la documentazione ufficiale [qui](https://docs.gitea.com/installation/). Successivamente, è necessario impostare il database utilizzato da Gitea, sempre utilizzando la [documentazione ufficiale](https://docs.gitea.com/installation/database-prep).
+
+Una volta aver impostato Gitea e creato l'utente, è necessario installare un **Gitea runner**, un daemon che si occuperà di eseguire i workflow delle repository. Per fare ciò basta eseguire i seguenti step:
+
+- scaricare il runner per il proprio sistema operativo da [qui](https://about.gitea.com/products/runner/);
+- aggiungere i permessi di esecuzione al runner. In sistemi POSIX-compliant basta usare `chmod +x <nome_eseguibile>`;
+- andare su Gitea in `Account > Impostazioni > Azioni > Runners` e cliccare su `Create new Runner`. Apparirà un registration token da copiare;
+- eseugire il runner con argomento `register`. Per gli step di configurazione del runner, bisogna specificare:
+  - dominio di Gitea, `http://localhost:3000` in setup regolari;
+  - token di registrazione, recuperato precedentemente;
+  - nome del runner, arbitrario;
+  - etichette del runner. Qui è importante specificare solo `self-hosted`.
+
+Una volta registrato, il runner può essere mandato in esecuzione con argomento `daemon`: il runner attenderà, così, le richieste dei workflow, eseguendole.
+
 ### Setup delle repository
 
 Le repository Gitea possono essere gestite mediante i sorgenti OpenTofu nella cartella `repo-setup`. Requisito fondamentale è che all'interno della cartella vi siano i seguenti file:
 
-- `gitea_token`, file che contiene il token dell'account Gitea per la creazione di repository. Il token può essere creato andando su `Account > Impostazioni > Applicazioni > Genera Nuovo Token`. Il token deve avere **almeno** i permessi per la creazione e la gestione delle repository;
+- `gitea_token`, file che contiene il token dell'account Gitea per la creazione di repository. Il token può essere creato andando su `Account > Impostazioni > Applicazioni > Genera Nuovo Token`. Il token deve avere **almeno** i permessi per la creazione e la gestione delle repository. Per semplicità, si può anche creare un token con permessi di lettura e scrittura su tutti gli elementi specificati alla creazioen del token, dato che Gitea è self-hosted sulla macchina. In setup condivisi, bisogna definire con maggiore granularità i permessi del token seguendo la documentazione;
 - `postgre-pass.txt`, che contiene la password del database PostgreSQL da inserire come segreto della repository di infrastruttura. Chiaramente, **salvare la password in clear-text è un approccio insicuro**, e ricordo che il progetto è solo a scopi dimostrativi;
 - `ssh_id` e `ssh_id.pub`, chiavi SSH da inserire sempre come segreto della repository di infrastruttura. Le chiavi possono essere create con il comando `ssh-keygen -t ed25519 -f ssh_id -N ""`;
 - Gitea dev'essere ospitato alla porta 3000. In alternativa, andare nel file `variables.tf` e cambiare la porta dell'URL.
