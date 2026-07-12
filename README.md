@@ -210,7 +210,7 @@ Il workflow si attiva alle modifiche della repo.
 
 Per costruire l'infrastruttura, è sufficiente copiare i file:
 
-![copyfile]("copy-files.mp4")
+![copyfile](copy-files.mp4)
 
 Una volta copiati, basta pushare le modifiche delle singole repository su Gitea usando i comandi git (`git add`, `git commit` e `git push`. Il push chiederà l'inserimento di username e password dell'utenza Gitea creata). Affinché i workflow possano essere eseguiti, bisogna lanciare il runner con argomento `daemon`.
 
