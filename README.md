@@ -88,7 +88,7 @@ Una volta aver impostato Gitea e creato l'utente, è necessario installare un **
 
 Una volta registrato, il runner può essere mandato in esecuzione con argomento `daemon`: il runner attenderà, così, le richieste dei workflow, eseguendole.
 
-<video src="./runner.mp4" controls> </video> 
+![runner](runner.mp4)
 
 ### Setup delle repository
 
@@ -102,7 +102,7 @@ Le repository Gitea possono essere gestite mediante i sorgenti OpenTofu nella ca
 
 A questo punto, applicando i sorgenti OpenTofu è possibile creare le repository. Come output della generazione vengono forniti i link per la clonazione delle repository.
 
-<video controls src="repo-run.mp4" title="Title"></video>
+![reporun](repo-run.mp4)
 
 ### Repository dell'infrastruttura
 
