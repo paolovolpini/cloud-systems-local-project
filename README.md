@@ -88,6 +88,8 @@ Una volta aver impostato Gitea e creato l'utente, è necessario installare un **
 
 Una volta registrato, il runner può essere mandato in esecuzione con argomento `daemon`: il runner attenderà, così, le richieste dei workflow, eseguendole.
 
+<video src="./runner.mp4" controls> </video> 
+
 ### Setup delle repository
 
 Le repository Gitea possono essere gestite mediante i sorgenti OpenTofu nella cartella `repo-setup`. Requisito fondamentale è che all'interno della cartella vi siano i seguenti file:
@@ -95,9 +97,12 @@ Le repository Gitea possono essere gestite mediante i sorgenti OpenTofu nella ca
 - `gitea_token`, file che contiene il token dell'account Gitea per la creazione di repository. Il token può essere creato andando su `Account > Impostazioni > Applicazioni > Genera Nuovo Token`. Il token deve avere **almeno** i permessi per la creazione e la gestione delle repository. Per semplicità, si può anche creare un token con permessi di lettura e scrittura su tutti gli elementi specificati alla creazioen del token, dato che Gitea è self-hosted sulla macchina. In setup condivisi, bisogna definire con maggiore granularità i permessi del token seguendo la documentazione;
 - `postgre-pass.txt`, che contiene la password del database PostgreSQL da inserire come segreto della repository di infrastruttura. Chiaramente, **salvare la password in clear-text è un approccio insicuro**, e ricordo che il progetto è solo a scopi dimostrativi;
 - `ssh_id` e `ssh_id.pub`, chiavi SSH da inserire sempre come segreto della repository di infrastruttura. Le chiavi possono essere create con il comando `ssh-keygen -t ed25519 -f ssh_id -N ""`;
-- Gitea dev'essere ospitato alla porta 3000. In alternativa, andare nel file `variables.tf` e cambiare la porta dell'URL.
+- Gitea dev'essere ospitato alla porta 3000. In alternativa, andare nel file `variables.tf` e cambiare la porta dell'URL;
+- la variabile `gitea_username` deve corrispondere allo username dell'utente Gitea creato, cambiando il valore default presente in `variables.tf`.
 
 A questo punto, applicando i sorgenti OpenTofu è possibile creare le repository. Come output della generazione vengono forniti i link per la clonazione delle repository.
+
+<video src="./repo-run.mp4" controls> </video> 
 
 ### Repository dell'infrastruttura
 
@@ -200,6 +205,14 @@ Il workflow presente in `.gitea/workflows` permette il deployment dell'applicazi
 - applica i manifest.
 
 Il workflow si attiva alle modifiche della repo.
+
+### Costruire l'infrastruttura
+
+Per costruire l'infrastruttura, è sufficiente copiare i file:
+
+<video src="./copy-files.mp4" controls></video>
+
+Una volta copiati, basta pushare le modifiche delle singole repository su Gitea usando i comandi git (`git add`, `git commit` e `git push`. Il push chiederà l'inserimento di username e password dell'utenza Gitea creata). Affinché i workflow possano essere eseguiti, bisogna lanciare il runner con argomento `daemon`.
 
 ### Stress-testing
 
