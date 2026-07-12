@@ -102,7 +102,7 @@ Le repository Gitea possono essere gestite mediante i sorgenti OpenTofu nella ca
 
 A questo punto, applicando i sorgenti OpenTofu è possibile creare le repository. Come output della generazione vengono forniti i link per la clonazione delle repository.
 
-<video src="./repo-run.mp4" controls> </video> 
+<video controls src="repo-run.mp4" title="Title"></video>
 
 ### Repository dell'infrastruttura
 
@@ -210,7 +210,7 @@ Il workflow si attiva alle modifiche della repo.
 
 Per costruire l'infrastruttura, è sufficiente copiare i file:
 
-<video src="./copy-files.mp4" controls></video>
+![copyfile]("./copy-files.mp4")
 
 Una volta copiati, basta pushare le modifiche delle singole repository su Gitea usando i comandi git (`git add`, `git commit` e `git push`. Il push chiederà l'inserimento di username e password dell'utenza Gitea creata). Affinché i workflow possano essere eseguiti, bisogna lanciare il runner con argomento `daemon`.
 
